@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<link rel="stylesheet" href="css/materialize.css">
+	<link rel="stylesheet" href="css/style.css">
+	<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+	<title>Oop!</title>
+</head>
+<body>
+	<script src="js/materialize.min.js"></script>
+
+<div class="container">
+	<div class="row"></div>
+	<div class="row">
+		<div class="col s1"></div>
+		<div class="col s4">
+			<button id="labelForGetFileBtn1" class="waves-effect waves-light btn" onclick="clickBtn('getFileBtn1')">Открыть файл</button>
+			<input type='file' id="getFileBtn1" style="display:none">
+			<p id="fileName1">no file</p>
+		</div>
+		<div class="col s4">
+			<button id="labelForGetFileBtn2" class="waves-effect waves-light btn" onclick="clickBtn('getFileBtn2')">Открыть второй</button>
+			<input type='file' id="getFileBtn2" style="display:none">
+			<p id="fileName2">no file</p>
+		</div>
+		<div class="col s2">
+			<button id="labelForAnalysisButton" class="waves-effect waves-light btn" onclick="clickBtn('analysisBtn')">Анализ</button>
+			<input type='button' id="analysisBtn" style="display:none">
+		</div>
+		<div class="input-field col s1">
+			<select id="contentWidthSelect">
+				<option value="1">4</option>
+				<option value="2" selected>8</option>
+				<option value="3">16</option>
+			</select>
+			<label>Байт в строке</label>
+		</div>
+	</div>
+
+	<div class="row">
+		<div class="col s1"></div>
+		<div class="col s11">
+			<p id="resultString">Total bytes: </p>
+		</div>
+	</div>
+
+	<div class="row">
+		<div class="col s1 fileContent" style="font-family: monospace;">
+			<p id="addrContent"></p>
+		</div>
+		<div class="col s4 fileContent" style="font-family: monospace;">
+			<p id="fileContent1"></p>
+		</div>
+		<div class="col s4 fileContent" style="font-family: monospace;">
+			<p id="fileContent2"></p>
+		</div>
+		<div class="col s3 fileContent" style="font-family: monospace;">
+			<p id="analysisContent"></p>
+		</div>
+	</div>
+</div>
+
+	<script>
+		var fileBuff1 = {
+			name: '',
+			buff: Uint8Array,
+			refresh: () => {refreshContentField(fileBuff1, document.getElementById('fileContent1'))}
+		};
+
+		var fileBuff2 = {
+			name: '',
+			buff: Uint8Array,
+			refresh: () => {refreshContentField(fileBuff2, document.getElementById('fileContent2'))}
+		};
+
+		var ContentWidth = 8;
+
+		document.addEventListener('DOMContentLoaded', function() {
+			var elems = document.querySelectorAll('select');
+			var instances = M.FormSelect.init(elems);
+
+			let domContentWidthSelect = document.getElementById('contentWidthSelect');
+			ContentWidth = Number(domContentWidthSelect.options[domContentWidthSelect.selectedIndex].text);
+
+			domContentWidthSelect.addEventListener('change', () => {
+				let domContentWidthSelect = document.getElementById('contentWidthSelect');
+				ContentWidth = Number(domContentWidthSelect.options[domContentWidthSelect.selectedIndex].text);
+				fileBuff1.refresh();
+				fileBuff2.refresh();
+				refreshAddrField(fileBuff1);
+			});
+
+			domGetFileBtn1 = document.getElementById('getFileBtn1');
+			domGetFileBtn1.addEventListener('change', () => { readFileContent(	document.getElementById('fileName1'),
+																				domGetFileBtn1,
+																				fileBuff1); }, false);
+
+			domGetFileBtn2 = document.getElementById('getFileBtn2');
+			domGetFileBtn2.addEventListener('change', () => { readFileContent(	document.getElementById('fileName2'),
+																				domGetFileBtn2,
+																				fileBuff2); }, false);
+
+			domAnalysisBtn = document.getElementById('analysisBtn');
+			domAnalysisBtn.addEventListener('click', () => { analyzeFiles(); }, false);
+
+		});
+
+		function clickBtn(btn)
+		{
+			document.getElementById(btn).click();
+		}
+
+		function refreshContentField(fileBuff, domContentField)
+		{
+			let contentStr = '';
+			let maxLen = fileBuff.buff.length - ContentWidth;
+			for (let i = 0; i < maxLen; i = i + ContentWidth)
+			{
+				for (let v = 0; v < ContentWidth; v++)
+				{
+					contentStr = contentStr + ' ' + ('00'+(fileBuff.buff[i+v]).toString(16)).substr(-2);
+					if (((v+1) % 4) == 0)
+					{
+						contentStr += '&nbsp';
+					}
+				}
+				contentStr = contentStr + '<br>';
+			}
+			domContentField.innerHTML = contentStr;
+		}
+
+		function refreshAddrField(fileBuff)
+		{
+			let contentStr = '';
+			let maxLen = fileBuff.buff.length - ContentWidth;
+			for (let i = 0; i < maxLen; i = i + ContentWidth)
+			{
+				contentStr += ('00000000' + i.toString(16)).substr(-8) + '<br>';
+			}
+			document.getElementById('addrContent').innerHTML = contentStr;
+		}
+
+		function readFileContent(domFileNameField, domFileInput, fileBuff)
+		{
+			const fileList = domFileInput.files;
+			const numFiles = fileList.length;
+
+			if(numFiles > 0)
+			domFileNameField.innerHTML = fileList[0].name;
+			else
+				return;
+
+			fileBuff.name = fileList[0].name;
+
+			const reader = new FileReader();
+			reader.readAsArrayBuffer(fileList[0]);
+
+			reader.onload = function()
+			{
+				fileBuff.buff = new Uint8Array(reader.result);
+				fileBuff.refresh();
+			};
+
+			reader.onerror = function()
+			{
+				console.log(reader.error);
+			};
+		}
+
+		function analyzeFiles()
+		{
+			console.log('fileBuff1: ' + fileBuff1.name);
+			console.log(fileBuff1.buff.length.toString());
+			console.log('fileBuff2: ' + fileBuff2.name);
+			console.log(fileBuff2.buff.length.toString());
+
+			let maxLen = (fileBuff1.buff.length <= fileBuff2.buff.length) ? fileBuff1.buff.length : fileBuff2.buff.length;
+			let differBytes = 0;
+
+			let domAnalysisContent = document.getElementById('analysisContent');
+			domAnalysisContent.innerHTML = '';
+
+			for (let i = 0; i < maxLen; i = i + ContentWidth)
+			{
+				let bytesEqualFlag = false;
+				let analysisSpan = '<span ';
+				let analysisString = '';
+
+				for (let j = 0; j < ContentWidth; j++)
+				{
+					bytesEqualFlag = true;
+					if(fileBuff1.buff[i+j] == fileBuff2.buff[i+j])
+					{
+						analysisString += '1';
+					}
+					else
+					{
+						bytesEqualFlag = false;
+						differBytes++;
+						analysisString += '0';
+					}
+				}
+
+				analysisString = (analysisString == '') ? 'None' : analysisString
+
+				if (bytesEqualFlag)
+					analysisSpan += 'style="color: green;">' + analysisString + ' Equal!';
+				else
+					analysisSpan += 'style="color: red;">' + analysisString + ' Not equal!!!';
+
+				domAnalysisContent.innerHTML += analysisSpan + '</span><br>';
+			}
+
+			let domResultString = document.getElementById('resultString');
+			domResultString.innerHTML =  '<span>Total bytes: ' + maxLen.toString() + ';</span>&nbsp&nbsp&nbsp';
+			domResultString.innerHTML += '<span>Different bytes: ' + differBytes.toString() + ';</span>&nbsp&nbsp&nbsp';
+			domResultString.innerHTML += '<span>Different percent: ' + (Math.round(100 * differBytes / maxLen)).toString() + ';</span>&nbsp&nbsp&nbsp';
+
+			refreshAddrField(fileBuff1);
+		}
+
+	</script>
+
+</body>
+</html>
