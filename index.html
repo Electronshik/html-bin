@@ -17,13 +17,15 @@
 		<div class="col s1"></div>
 		<div class="col s4">
 			<button id="labelForGetFileBtn1" class="waves-effect waves-light btn" onclick="clickBtn('getFileBtn1')">Открыть файл</button>
-			<input type='file' id="getFileBtn1" style="display:none">
+			<input type='file' onclick="this.value=null;" id="getFileBtn1" style="display:none">
 			<p id="fileName1">no file</p>
+			<span><b>File length: </b><span id="fileLen1"></span></span>
 		</div>
 		<div class="col s4">
 			<button id="labelForGetFileBtn2" class="waves-effect waves-light btn" onclick="clickBtn('getFileBtn2')">Открыть второй</button>
-			<input type='file' id="getFileBtn2" style="display:none">
+			<input type='file' onclick="this.value=null;" id="getFileBtn2" style="display:none">
 			<p id="fileName2">no file</p>
+			<span><b>File length: </b><span id="fileLen2"></span></span>
 		</div>
 		<div class="col s2">
 			<button id="labelForAnalysisButton" class="waves-effect waves-light btn" onclick="clickBtn('analysisBtn')">Анализ</button>
@@ -42,7 +44,7 @@
 	<div class="row">
 		<div class="col s1"></div>
 		<div class="col s11">
-			<p id="resultString">Total bytes: </p>
+			<span id="resultString">&nbsp</span>
 		</div>
 	</div>
 
@@ -65,14 +67,18 @@
 	<script>
 		var fileBuff1 = {
 			name: '',
+			isLoaded: false,
+			isPrimary: true,
 			buff: Uint8Array,
-			refresh: () => {refreshContentField(fileBuff1, document.getElementById('fileContent1'))}
+			refresh: () => {if(fileBuff1.isLoaded) { refreshContentField(fileBuff1, document.getElementById('fileContent1'), fileBuff2);} }
 		};
 
 		var fileBuff2 = {
 			name: '',
+			isLoaded: false,
+			isPrimary: false,
 			buff: Uint8Array,
-			refresh: () => {refreshContentField(fileBuff2, document.getElementById('fileContent2'))}
+			refresh: () => {if(fileBuff2.isLoaded) { refreshContentField(fileBuff2, document.getElementById('fileContent2'), fileBuff1);} }
 		};
 
 		var ContentWidth = 8;
@@ -89,21 +95,23 @@
 				ContentWidth = Number(domContentWidthSelect.options[domContentWidthSelect.selectedIndex].text);
 				fileBuff1.refresh();
 				fileBuff2.refresh();
-				refreshAddrField(fileBuff1);
+				refreshAll();
 			});
 
 			domGetFileBtn1 = document.getElementById('getFileBtn1');
 			domGetFileBtn1.addEventListener('change', () => { readFileContent(	document.getElementById('fileName1'),
+																				document.getElementById('fileLen1'),
 																				domGetFileBtn1,
 																				fileBuff1); }, false);
 
 			domGetFileBtn2 = document.getElementById('getFileBtn2');
 			domGetFileBtn2.addEventListener('change', () => { readFileContent(	document.getElementById('fileName2'),
+																				document.getElementById('fileLen2'),
 																				domGetFileBtn2,
 																				fileBuff2); }, false);
 
 			domAnalysisBtn = document.getElementById('analysisBtn');
-			domAnalysisBtn.addEventListener('click', () => { analyzeFiles(); }, false);
+			domAnalysisBtn.addEventListener('click', () => { refreshAll(); }, false);
 
 		});
 
@@ -112,37 +120,45 @@
 			document.getElementById(btn).click();
 		}
 
-		function refreshContentField(fileBuff, domContentField)
+		function refreshContentField(fileBuff, domContentField, fileBuffToCompare)
 		{
 			let contentStr = '';
-			let maxLen = fileBuff.buff.length - ContentWidth;
-			for (let i = 0; i < maxLen; i = i + ContentWidth)
-			{
-				for (let v = 0; v < ContentWidth; v++)
-				{
-					contentStr = contentStr + ' ' + ('00'+(fileBuff.buff[i+v]).toString(16)).substr(-2);
-					if (((v+1) % 4) == 0)
-					{
-						contentStr += '&nbsp';
-					}
-				}
-				contentStr = contentStr + '<br>';
-			}
+			let i = 0
+			var differsIsAllowed = !fileBuff.isPrimary && fileBuffToCompare.isLoaded;
+
+			do {
+				let differs = differsIsAllowed && (fileBuff.buff[i] != fileBuffToCompare.buff[i]);
+				contentStr = contentStr + ' ';
+				if (differs)
+					contentStr += '<span style="color: red;">';
+
+				contentStr += ('00'+(fileBuff.buff[i]).toString(16)).substr(-2);
+				if (differs)
+					contentStr += '</span>';
+
+				if (((i+1) % 4) == 0)
+					contentStr += '&nbsp';
+
+				if (((i+1) % ContentWidth) == 0)
+					contentStr += '<br>';
+
+				i++;
+			} while (i < fileBuff.buff.length);
 			domContentField.innerHTML = contentStr;
 		}
 
-		function refreshAddrField(fileBuff)
+		function refreshAddrField()
 		{
 			let contentStr = '';
-			let maxLen = fileBuff.buff.length - ContentWidth;
-			for (let i = 0; i < maxLen; i = i + ContentWidth)
-			{
+			let i = 0;
+			do {
 				contentStr += ('00000000' + i.toString(16)).substr(-8) + '<br>';
-			}
+				i = i + ContentWidth
+			} while (i < fileBuff1.buff.length);
 			document.getElementById('addrContent').innerHTML = contentStr;
 		}
 
-		function readFileContent(domFileNameField, domFileInput, fileBuff)
+		function readFileContent(domFileNameField, domFileLenField, domFileInput, fileBuff)
 		{
 			const fileList = domFileInput.files;
 			const numFiles = fileList.length;
@@ -160,7 +176,10 @@
 			reader.onload = function()
 			{
 				fileBuff.buff = new Uint8Array(reader.result);
-				fileBuff.refresh();
+				//fileBuff.refresh();
+				domFileLenField.innerHTML = fileBuff.buff.length.toString();
+				fileBuff.isLoaded = true;
+				refreshAll();
 			};
 
 			reader.onerror = function()
@@ -169,7 +188,7 @@
 			};
 		}
 
-		function analyzeFiles()
+		function refreshAnalyseField()
 		{
 			console.log('fileBuff1: ' + fileBuff1.name);
 			console.log(fileBuff1.buff.length.toString());
@@ -217,8 +236,14 @@
 			domResultString.innerHTML =  '<span>Total bytes: ' + maxLen.toString() + ';</span>&nbsp&nbsp&nbsp';
 			domResultString.innerHTML += '<span>Different bytes: ' + differBytes.toString() + ';</span>&nbsp&nbsp&nbsp';
 			domResultString.innerHTML += '<span>Different percent: ' + (Math.round(100 * differBytes / maxLen)).toString() + ';</span>&nbsp&nbsp&nbsp';
+		}
 
-			refreshAddrField(fileBuff1);
+		function refreshAll()
+		{
+			fileBuff1.refresh();
+			fileBuff2.refresh();
+			refreshAddrField();
+			refreshAnalyseField();
 		}
 
 	</script>
