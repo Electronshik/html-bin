@@ -16,16 +16,16 @@
 	<div class="row">
 		<div class="col s1"></div>
 		<div class="col s4">
-			<button id="labelForGetFileBtn1" class="waves-effect waves-light btn" onclick="clickBtn('getFileBtn1')">Открыть файл</button>
+			<button id="labelForGetFileBtn1" class="waves-effect waves-light btn" onclick="clickBtn('getFileBtn1')">Открыть референсный файл</button>
 			<input type='file' onclick="this.value=null;" id="getFileBtn1" style="display:none">
 			<p id="fileName1">no file</p>
-			<span><b>File length: </b><span id="fileLen1"></span></span>
+			<span>File length: <b><span id="fileLen1"></span></b></span>
 		</div>
 		<div class="col s4">
-			<button id="labelForGetFileBtn2" class="waves-effect waves-light btn" onclick="clickBtn('getFileBtn2')">Открыть второй</button>
+			<button id="labelForGetFileBtn2" class="waves-effect waves-light btn" onclick="clickBtn('getFileBtn2')">Открыть сравниваемый файл</button>
 			<input type='file' onclick="this.value=null;" id="getFileBtn2" style="display:none">
 			<p id="fileName2">no file</p>
-			<span><b>File length: </b><span id="fileLen2"></span></span>
+			<span>File length: <b><span id="fileLen2"></span></b></span>
 		</div>
 		<div class="col s2">
 			<button id="labelForAnalysisButton" class="waves-effect waves-light btn" onclick="clickBtn('analysisBtn')">Анализ</button>
@@ -93,8 +93,6 @@
 			domContentWidthSelect.addEventListener('change', () => {
 				let domContentWidthSelect = document.getElementById('contentWidthSelect');
 				ContentWidth = Number(domContentWidthSelect.options[domContentWidthSelect.selectedIndex].text);
-				fileBuff1.refresh();
-				fileBuff2.refresh();
 				refreshAll();
 			});
 
@@ -190,12 +188,9 @@
 
 		function refreshAnalyseField()
 		{
-			console.log('fileBuff1: ' + fileBuff1.name);
-			console.log(fileBuff1.buff.length.toString());
-			console.log('fileBuff2: ' + fileBuff2.name);
-			console.log(fileBuff2.buff.length.toString());
-
-			let maxLen = (fileBuff1.buff.length <= fileBuff2.buff.length) ? fileBuff1.buff.length : fileBuff2.buff.length;
+			//let maxLen = (fileBuff1.buff.length <= fileBuff2.buff.length) ? fileBuff1.buff.length : fileBuff2.buff.length;
+			let maxLen = fileBuff1.buff.length;
+			let fileLenDiffers = fileBuff1.buff.length != fileBuff2.buff.length;
 			let differBytes = 0;
 
 			let domAnalysisContent = document.getElementById('analysisContent');
@@ -203,22 +198,20 @@
 
 			for (let i = 0; i < maxLen; i = i + ContentWidth)
 			{
-				let bytesEqualFlag = false;
+				let bytesEqualFlag = true;
 				let analysisSpan = '<span ';
 				let analysisString = '';
 
-				for (let j = 0; j < ContentWidth; j++)
+				for (let j = i; j < (i + ContentWidth); j++)
 				{
-					bytesEqualFlag = true;
-					if(fileBuff1.buff[i+j] == fileBuff2.buff[i+j])
+					analysisString += String.fromCharCode(fileBuff1.buff[j]);
+					if(j < maxLen)
 					{
-						analysisString += '1';
-					}
-					else
-					{
-						bytesEqualFlag = false;
-						differBytes++;
-						analysisString += '0';
+						if(fileBuff1.buff[j] != fileBuff2.buff[j])
+						{
+							differBytes++;
+							bytesEqualFlag = false;
+						}
 					}
 				}
 
@@ -232,10 +225,13 @@
 				domAnalysisContent.innerHTML += analysisSpan + '</span><br>';
 			}
 
+			let domResStr =  '<span>Total bytes: <b>' + maxLen.toString() + '</b></span>&nbsp&nbsp&nbsp';
+			domResStr += '<span>Different bytes: </span><span style="color: ';
+			domResStr += (differBytes > 0 || fileLenDiffers) ? 'red' : 'green';
+			domResStr += ';"><b>' + differBytes.toString() + '&nbsp(' + (Math.round(100 * differBytes / maxLen)).toString() + '%)</b></span>';
+
 			let domResultString = document.getElementById('resultString');
-			domResultString.innerHTML =  '<span>Total bytes: ' + maxLen.toString() + ';</span>&nbsp&nbsp&nbsp';
-			domResultString.innerHTML += '<span>Different bytes: ' + differBytes.toString() + ';</span>&nbsp&nbsp&nbsp';
-			domResultString.innerHTML += '<span>Different percent: ' + (Math.round(100 * differBytes / maxLen)).toString() + ';</span>&nbsp&nbsp&nbsp';
+			domResultString.innerHTML = domResStr;
 		}
 
 		function refreshAll()
@@ -244,6 +240,13 @@
 			fileBuff2.refresh();
 			refreshAddrField();
 			refreshAnalyseField();
+
+			if (fileBuff1.isLoaded && fileBuff2.isLoaded &&
+				fileBuff1.buff.length != fileBuff2.buff.length)
+			{
+				let domFileLen2 = document.getElementById('fileLen2');
+				domFileLen2.innerHTML = '<span style="color: red;">' + domFileLen2.innerHTML + '</span>';
+			}
 		}
 
 	</script>
