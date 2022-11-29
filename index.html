@@ -70,7 +70,10 @@
 			isLoaded: false,
 			isPrimary: true,
 			buff: Uint8Array,
-			refresh: () => {if(fileBuff1.isLoaded) { refreshContentField(fileBuff1, document.getElementById('fileContent1'), fileBuff2);} }
+			refresh: () => {if(fileBuff1.isLoaded) { refreshContentField(	fileBuff1,
+																			document.getElementById('fileContent1'),
+																			document.getElementById('fileLen1'), 
+																			fileBuff2);} }
 		};
 
 		var fileBuff2 = {
@@ -78,7 +81,10 @@
 			isLoaded: false,
 			isPrimary: false,
 			buff: Uint8Array,
-			refresh: () => {if(fileBuff2.isLoaded) { refreshContentField(fileBuff2, document.getElementById('fileContent2'), fileBuff1);} }
+			refresh: () => {if(fileBuff2.isLoaded) { refreshContentField(	fileBuff2,
+																			document.getElementById('fileContent2'),
+																			document.getElementById('fileLen1'),
+																			fileBuff1);} }
 		};
 
 		var ContentWidth = 8;
@@ -118,15 +124,18 @@
 			document.getElementById(btn).click();
 		}
 
-		function refreshContentField(fileBuff, domContentField, fileBuffToCompare)
+		function refreshContentField(fileBuff, domContentField, domFileLenField, fileBuffToCompare)
 		{
 			let contentStr = '';
 			let i = 0
 			var differsIsAllowed = !fileBuff.isPrimary && fileBuffToCompare.isLoaded;
 
+			let maxLen = fileBuff.isPrimary ? fileBuff.buff.length : fileBuffToCompare.buff.length;
+
 			do {
 				let differs = differsIsAllowed && (fileBuff.buff[i] != fileBuffToCompare.buff[i]);
 				contentStr = contentStr + ' ';
+
 				if (differs)
 					contentStr += '<span style="color: red;">';
 
@@ -141,7 +150,12 @@
 					contentStr += '<br>';
 
 				i++;
-			} while (i < fileBuff.buff.length);
+
+				domFileLenField.innerHTML = i.toString() + 'Bytes';
+			} while (i < maxLen);
+
+			console.log('refreshContentField is done');
+
 			domContentField.innerHTML = contentStr;
 		}
 
@@ -162,7 +176,7 @@
 			const numFiles = fileList.length;
 
 			if(numFiles > 0)
-			domFileNameField.innerHTML = fileList[0].name;
+				domFileNameField.innerHTML = fileList[0].name;
 			else
 				return;
 
@@ -196,10 +210,13 @@
 			let domAnalysisContent = document.getElementById('analysisContent');
 			domAnalysisContent.innerHTML = '';
 
-			for (let i = 0; i < maxLen; i = i + ContentWidth)
+			maxLen = maxLen - (maxLen % ContentWidth);
+
+			let analysisSpan = '';
+			for (let i = 0; i < maxLen; i = i + ContentWidth) //maxLen
 			{
 				let bytesEqualFlag = true;
-				let analysisSpan = '<span ';
+				analysisSpan += '<span ';
 				let analysisString = '';
 
 				for (let j = i; j < (i + ContentWidth); j++)
@@ -207,7 +224,15 @@
 					analysisString += String.fromCharCode(fileBuff1.buff[j]);
 					if(j < maxLen)
 					{
-						if(fileBuff1.buff[j] != fileBuff2.buff[j])
+						if(fileBuff2.isLoaded)
+						{
+							if(fileBuff1.buff[j] != fileBuff2.buff[j])
+							{
+								differBytes++;
+								bytesEqualFlag = false;
+							}
+						}
+						else
 						{
 							differBytes++;
 							bytesEqualFlag = false;
@@ -222,9 +247,9 @@
 				else
 					analysisSpan += 'style="color: red;">' + analysisString + ' Not equal!!!';
 
-				domAnalysisContent.innerHTML += analysisSpan + '</span><br>';
+				analysisSpan += '</span><br>';
 			}
-
+			domAnalysisContent.innerHTML = analysisSpan;
 			let domResStr =  '<span>Total bytes: <b>' + maxLen.toString() + '</b></span>&nbsp&nbsp&nbsp';
 			domResStr += '<span>Different bytes: </span><span style="color: ';
 			domResStr += (differBytes > 0 || fileLenDiffers) ? 'red' : 'green';
